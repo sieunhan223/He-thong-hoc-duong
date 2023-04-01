@@ -13,9 +13,10 @@
 #include "Fonts/FreeSansBold9pt7b.h";
 #include <HTTPClient.h>
 
+//Định nghĩa các chân
 #define RST_PIN 4
 #define SS_PIN 15
-#define ken 
+#define ken 0
 #define TFT_CS 5
 #define TFT_DC 17 
 
