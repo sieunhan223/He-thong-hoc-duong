@@ -1,23 +1,23 @@
 #include <Adafruit_ILI9341.h>
 #include <SPI.h>
 #include <MFRC522.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
+#include <WiFi.h>
+#include <WiFiAP.h>
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
-#include <ESPAsyncTCP.h>
-#include "LittleFS.h";
+#include <SPIFFS.h>
 #include "LOGO_congty.h";
 #include <Adafruit_GFX.h>
 #include "Fonts/FreeSansBold12pt7b.h";
 #include "Fonts/FreeSansBold9pt7b.h";
+#include <HTTPClient.h>
 
-#define RST_PIN 3
-#define SS_PIN 4
-#define ken 8
-#define TFT_CS 1
-#define TFT_DC 2
+#define RST_PIN 4
+#define SS_PIN 15
+#define ken 
+#define TFT_CS 5
+#define TFT_DC 17 
 
 int col[8];
 
@@ -42,7 +42,7 @@ String terminal_id;
 String URL_server;
 String AP_name, AP_pass;
 boolean restart = false;
-bool val = true;
+bool xacthuc = true;
 // File paths to save input values permanently
 const char *ssidPath = "/ssid.txt";
 const char *passPath = "/pass.txt";
@@ -53,6 +53,7 @@ const char *AP_passPath = "/AP_pass.txt";
 
 // http://192.168.4.1/
 
+HTTPClient http;
 AsyncWebServer server(80);
 
 IPAddress localIP;
@@ -76,7 +77,7 @@ void readBlock(byte block, byte len, byte *content, MFRC522::StatusCode &status)
   {
     Serial.print(F("Authentication failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
-    val = false;
+    xacthuc = false;
   }
 
   status = mfrc522.MIFARE_Read(block, content, &len);
@@ -84,36 +85,28 @@ void readBlock(byte block, byte len, byte *content, MFRC522::StatusCode &status)
   {
     Serial.print(F("Reading failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
-    val = false;
+    xacthuc = false;
   }
 }
 
-// Read File from LittleFS
+// Hàm đọc file
 String readFile(fs::FS &fs, const char *path)
 {
-  Serial.printf("Reading file: %s\r\n", path);
-
   File file = fs.open(path, "r");
   if (!file || file.isDirectory())
   {
-    Serial.println("- failed to open file for reading");
+    Serial.println("- empty file or failed to open file");
     return String();
   }
-
   String fileContent;
   while (file.available())
-  {
     fileContent = file.readStringUntil('\n');
-    break;
-  }
-  file.close();
   return fileContent;
 }
-// Write file to LittleFS
+// Hàm viết file
 void writeFile(fs::FS &fs, const char *path, const char *message)
 {
   Serial.printf("Writing file: %s\r\n", path);
-
   File file = fs.open(path, "w");
   if (!file)
   {
@@ -121,26 +114,22 @@ void writeFile(fs::FS &fs, const char *path, const char *message)
     return;
   }
   if (file.print(message))
-  {
     Serial.println("- file written");
-  }
   else
-  {
     Serial.println("- frite failed");
-  }
   file.close();
 }
 
-// Initialize LittleFS
+// Initialize SPIFFS
 void initFS()
 {
-  if (!LittleFS.begin())
+  if (!SPIFFS.begin())
   {
-    Serial.println("An error has occurred while mounting LittleFS");
+    Serial.println("An error has occurred while mounting SPIFFS");
   }
   else
   {
-    Serial.println("LittleFS mounted successfully");
+    Serial.println("SPIFFS mounted successfully");
   }
 }
 
@@ -223,12 +212,12 @@ void setup()
   col[6] = tft.color565(142, 142, 142);
   col[7] = tft.color565(160, 160, 160);
   // đọc và lưa giá trị ở tệp
-  ssid = readFile(LittleFS, ssidPath);
-  pass = readFile(LittleFS, passPath);
-  terminal_id = readFile(LittleFS, terminal_idPath);
-  URL_server = readFile(LittleFS, URL_serverPath);
-  AP_name = readFile(LittleFS, AP_namePath);
-  AP_pass = readFile(LittleFS, AP_passPath);
+  ssid = readFile(SPIFFS, ssidPath);
+  pass = readFile(SPIFFS, passPath);
+  terminal_id = readFile(SPIFFS, terminal_idPath);
+  URL_server = readFile(SPIFFS, URL_serverPath);
+  AP_name = readFile(SPIFFS, AP_namePath);
+  AP_pass = readFile(SPIFFS, AP_passPath);
 
   Serial.println(ssid);
   Serial.println(pass);
@@ -239,20 +228,18 @@ void setup()
 
   initWiFi();
 
-  // Kết nối web esp
-  // Connect to Wi-Fi network with SSID and password
+  // Kích hoạt chế độ AP
   Serial.println("Setting AP (Access Point)");
   Serial.print("Configuring access point...");
-  WiFi.softAP(AP_name, AP_pass);
-  IPAddress IP = WiFi.softAPIP();
+  IPAddress IP = WiFi.softAP(AP_name, AP_pass);
   Serial.print("AP IP address: ");
   Serial.println(IP);
 
   // Web Server Root URL
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-        { request->send(LittleFS, "/device_config.html", "text/html"); });
+        { request->send(SPIFFS, "/device_config.html", "text/html"); });
 
-  server.serveStatic("/", LittleFS, "/");
+  server.serveStatic("/", SPIFFS, "/");
 
   server.on("/", HTTP_POST, [](AsyncWebServerRequest *request)
         {
@@ -266,7 +253,7 @@ void setup()
             Serial.print("SSID set to: ");
             Serial.println(ssid);
             // Write file to save value
-            writeFile(LittleFS, ssidPath, ssid.c_str());
+            writeFile(SPIFFS, ssidPath, ssid.c_str());
           }
           // HTTP POST pass value
           if (p->name() == PARAM_INPUT_2) {
@@ -274,7 +261,7 @@ void setup()
             Serial.print("Password set to: ");
             Serial.println(pass);
             // Write file to save value
-            writeFile(LittleFS, passPath, pass.c_str());
+            writeFile(SPIFFS, passPath, pass.c_str());
           }
           // HTTP POST terminal_id value
           if (p->name() == PARAM_INPUT_3) {
@@ -282,7 +269,7 @@ void setup()
             Serial.print("Terminal ID set to: ");
             Serial.println(terminal_id);
             // Write file to save value
-            writeFile(LittleFS, terminal_idPath, terminal_id.c_str());
+            writeFile(SPIFFS, terminal_idPath, terminal_id.c_str());
           }
           // HTTP POST server value
           if (p->name() == PARAM_INPUT_4) {
@@ -290,7 +277,7 @@ void setup()
             Serial.print("server address set to: ");
             Serial.println(URL_server);
             // Write file to save value
-            writeFile(LittleFS, URL_serverPath, URL_server.c_str());
+            writeFile(SPIFFS, URL_serverPath, URL_server.c_str());
           }
           // HTTP POST AP name value
           if (p->name() == PARAM_INPUT_5) {
@@ -298,7 +285,7 @@ void setup()
             Serial.print("AP name set to: ");
             Serial.println(AP_name);
             // Write file to save value
-            writeFile(LittleFS, AP_namePath, AP_name.c_str());
+            writeFile(SPIFFS, AP_namePath, AP_name.c_str());
           }
           // HTTP POST AP pass value
           if (p->name() == PARAM_INPUT_6) {
@@ -306,7 +293,7 @@ void setup()
             Serial.print("AP pass set to: ");
             Serial.println(AP_pass);
             // Write file to save value
-            writeFile(LittleFS, AP_passPath, AP_pass.c_str());
+            writeFile(SPIFFS, AP_passPath, AP_pass.c_str());
           }
           //Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
         }
@@ -465,7 +452,7 @@ void loop()
   printText(s_SSCID, tft.color565(184, 210, 11), 78, 92, 1);
 
   // bị lỗi:
-  if (!val)
+  if (!xacthuc)
   {
     tft.fillScreen(BLACK);
     tft.setFont(&FreeSansBold12pt7b);
@@ -480,7 +467,7 @@ void loop()
 
   //-------------------------------------------------------------------------------------------------*
   // POST lên server
-  if (val)
+  if (xacthuc)
   {
     StaticJsonDocument<200> doc; // khai báo chỗ chứa dữ liệu
     String jsonData;
@@ -490,11 +477,13 @@ void loop()
     doc["Name"] = s_Name;
     serializeJsonPretty(doc, jsonData);
     WiFiClient client;
-    HTTPClient http;
+    // WiFiClientSecure *clients = new WiFiClientSecure; 
+    // clients->setCACert(root)
 
     Serial.print("[HTTP] begin...\n");
     // configure traged server and url
-    http.begin(client, URL_server); // HTTP
+    http.begin(client, URL_server + "/api/nfc-tab/test"); // HTTP
+    // http.begin(clients, URL_server); // HTTPs
     http.addHeader("Content-Type", "application/json");
 
     Serial.print("[HTTP] POST...\n");
@@ -544,7 +533,7 @@ void loop()
     http.end();    
   }
   else
-    val = true;
+    xacthuc = true;
   delay(50);
 //-------------------------------------------
 }
