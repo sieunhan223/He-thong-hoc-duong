@@ -16,11 +16,13 @@
 //Định nghĩa các chân
 #define RST_PIN 4
 #define SS_PIN 15
-#define ken 0
+#define ken 22
 #define TFT_CS 5
 #define TFT_DC 17 
+#define TFT_LED 25
 
 int col[8];
+bool xacthuc = true;
 
 #define BLACK 0x0000
 #define RED 0xF800
@@ -30,6 +32,9 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);             // Create MFRC522
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC); // tft
 MFRC522::MIFARE_Key key;
 
+//Image to Hex Code Converter:
+//http://www.rinkydinkelectronics.com/t_imageconverter565.php
+
 // Search for parameter in HTTP POST request
 const char *PARAM_INPUT_1 = "ssid";
 const char *PARAM_INPUT_2 = "pass";
@@ -37,13 +42,14 @@ const char *PARAM_INPUT_3 = "terminal_id";
 const char *PARAM_INPUT_4 = "URL_server";
 const char *PARAM_INPUT_5 = "AP_name";
 const char *PARAM_INPUT_6 = "AP_pass";
+
 // Variables to save values from HTML form
 String ssid, pass;
 String terminal_id;
 String URL_server;
 String AP_name, AP_pass;
 boolean restart = false;
-bool xacthuc = true;
+
 // File paths to save input values permanently
 const char *ssidPath = "/ssid.txt";
 const char *passPath = "/pass.txt";
@@ -52,7 +58,7 @@ const char *URL_serverPath = "/URL_server.txt";
 const char *AP_namePath = "/AP_name.txt";
 const char *AP_passPath = "/AP_pass.txt";
 
-// http://192.168.4.1/
+// http://192.168.4.1/ : AP IP Address
 
 HTTPClient http;
 AsyncWebServer server(80);
@@ -61,7 +67,7 @@ IPAddress localIP;
 
 //*****************************************************************************************//
 
-// Hàm cho tft
+// Hàm cho tft lcd
 void printText(String text, uint16_t color, int x, int y, int textSize)
 {
   tft.setCursor(x, y);
@@ -121,19 +127,56 @@ void writeFile(fs::FS &fs, const char *path, const char *message)
   file.close();
 }
 
+// //Convert to UTF8
+// String utf8rus(String source)
+// {
+//   int i,k;
+//   String target;
+//   unsigned char n;
+//   char m[2] = { '0', '\0' };
+
+ 
+//   k = source.length(); i = 0;
+ 
+//   while (i < k) {
+//     n = source[i]; i++;
+ 
+//     if (n >= 0xC0) {
+//       switch (n) {
+//         case 0xD0: {    
+//             n = source[i]; i++;
+//             if (n == 0x81) {
+//               n = 0xA8;
+//               break;
+//             }
+//             if (n >= 0x90 && n <= 0xBF) n = n + 0x30;      
+//             break;
+//           }
+//         case 0xD1: { 
+//             n = source[i]; i++;
+//             if (n == 0x91) {
+//               n = 0xB8;
+//               break;
+//             }      
+//             if (n >= 0x80 && n <= 0x8F) n = n + 0x70; 
+//             break;
+//           }
+//       }
+//     } 
+//     m[0] = n; target = target + String(m);
+//   }
+// return target;
+ 
+// }
+
 // Initialize SPIFFS
-void initFS()
+void initSPIFFS()
 {
   if (!SPIFFS.begin())
-  {
     Serial.println("An error has occurred while mounting SPIFFS");
-  }
   else
-  {
     Serial.println("SPIFFS mounted successfully");
-  }
 }
-
 // Initialize WiFi
 bool initWiFi()
 {
@@ -149,6 +192,7 @@ bool initWiFi()
   int dem = 0;
   while (WiFi.status() != WL_CONNECTED)
   {
+    //create begin screen
     for (int i = 8; i > 0; i--)
     {
       tft.fillCircle(150 + 15 * (cos(-(i + 0) * PI / 4)), 160 + 15 * (sin(-(i + 0) * PI / 4)), 3, col[0]);
@@ -169,9 +213,7 @@ bool initWiFi()
       delay(10);
     }
     if (dem > 50)
-    {
       break;
-    }
     Serial.print(".");
     dem = dem + 1;
   }
@@ -194,9 +236,10 @@ bool initWiFi()
 void setup()
 {
   Serial.begin(112500); // Initialize serial communications with the PC
-  initFS();       // InitFS6b6b6b
+  initSPIFFS();       // Init initSPIFFS
   SPI.begin();      // Init SPI bus
   mfrc522.PCD_Init();   // Init MFRC522 card
+  pinMode(TFT_LED,OUTPUT); //Init led TFT LCD 
 
   pinMode(ken, OUTPUT); // Init ken
   tft.begin();
@@ -212,6 +255,7 @@ void setup()
   col[5] = tft.color565(124, 124, 124);
   col[6] = tft.color565(142, 142, 142);
   col[7] = tft.color565(160, 160, 160);
+
   // đọc và lưa giá trị ở tệp
   ssid = readFile(SPIFFS, ssidPath);
   pass = readFile(SPIFFS, passPath);
@@ -227,21 +271,23 @@ void setup()
   Serial.println(AP_name);
   Serial.println(AP_pass);
 
-  initWiFi();
-
   // Kích hoạt chế độ AP
   Serial.println("Setting AP (Access Point)");
   Serial.print("Configuring access point...");
-  IPAddress IP = WiFi.softAP(AP_name, AP_pass);
+  WiFi.softAP(AP_name.c_str(), AP_pass.c_str());
+  IPAddress IP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(IP);
+
+  //Kết nối WiFi
+  initWiFi();
 
   // Web Server Root URL
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
         { request->send(SPIFFS, "/device_config.html", "text/html"); });
 
   server.serveStatic("/", SPIFFS, "/");
-
+  //Nếu có sự kiện cấu hình thiết bị:
   server.on("/", HTTP_POST, [](AsyncWebServerRequest *request)
         {
       int params = request->params();
@@ -296,12 +342,10 @@ void setup()
             // Write file to save value
             writeFile(SPIFFS, AP_passPath, AP_pass.c_str());
           }
-          //Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
         }
       }
       restart = true;
       request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address: http://192.168.4.1/"); });
-
   server.begin();
 }
 //*****************************************************************************************//
@@ -312,7 +356,7 @@ void loop()
     delay(5000);
     ESP.restart();
   }
-
+  digitalWrite(TFT_LED,HIGH);
   // khai báo các biến
   byte CardUID[18];
   String s_CardUID = "";
@@ -325,7 +369,6 @@ void loop()
   String s_Name2 = "";
 
   // Prepare key - all keys are set to FFFFFFFFFFFFh at chip delivery from the factory.
-
   for (byte i = 0; i < 6; i++)
     key.keyByte[i] = 0xFF;
 
@@ -385,6 +428,7 @@ void loop()
   Serial.println("");
 
   //-------------------------------------------------------------------------------------------------*
+
   // Xử lý biến Name1
   Serial.print("block5: ");
   block = 5;
@@ -406,7 +450,9 @@ void loop()
     Serial.write(Name1[i]);
   }
   Serial.println("");
+  
   //-------------------------------------------------------------------------------------------------*
+
   // Xử lý biến Name2
   Serial.print("block6: ");
   block = 6;
@@ -432,27 +478,30 @@ void loop()
     }
   }
   Serial.println("");
+
   //-------------------------------------------------------------------------------------------------*
   Serial.println(F("\n**End Reading**\n"));
   mfrc522.PICC_HaltA();
   mfrc522.PCD_StopCrypto1();
 
   //-------------------------------------------------------------------------------------------------*
-  // đọc thẻ:
+  // In lên màn hình:
   tft.fillScreen(tft.color565(35, 27, 18));
+
   String s_Name = s_Name1 + s_Name2;
   //  printText("NAME:", WHITE, 3, 30, 1);
   printText(s_Name, tft.color565(245, 108, 87), 3, 50, 1);
   Serial.println("");
-  //  // In lớp lên LCD
+
+  // In lớp lên LCD
   printText("CLASS:", tft.color565(247, 118, 4), 3, 71, 1);
   printText("A1", tft.color565(184, 210, 11), 78, 71, 1);
-  //
-  //  // in ID lên LCD
+
+  // in ID lên LCD
   printText("ID: ", tft.color565(247, 118, 4), 3, 92, 1);
   printText(s_SSCID, tft.color565(184, 210, 11), 78, 92, 1);
 
-  // bị lỗi:
+  // Nếu bị lỗi:
   if (!xacthuc)
   {
     tft.fillScreen(BLACK);
@@ -467,6 +516,7 @@ void loop()
   digitalWrite(ken, LOW);
 
   //-------------------------------------------------------------------------------------------------*
+
   // POST lên server
   if (xacthuc)
   {
