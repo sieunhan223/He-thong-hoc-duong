@@ -2,16 +2,24 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <WiFiClient.h>
+#include <Adafruit_GFX.h>
 #include <WiFi.h>
 #include <WiFiAP.h>
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
-#include "LOGO_congty.h";
+#include "LOGO_congty.h"
+#include "LOGO_SCHOOL.h"
+#include "header.h"
+#include "Attendance_Status.h"
 #include <Adafruit_GFX.h>
 #include "Fonts/FreeSansBold12pt7b.h";
 #include "Fonts/FreeSansBold9pt7b.h";
-#include <HTTPClient.h>
+#include "Fonts/Montserrat_ExtraBold20pt7b.h";
+#include "Fonts/Montserrat_ExtraBold10pt7b.h";
+#include "Fonts/Montserrat_SemiBold6pt7b.h";
+
 
 //Định nghĩa các chân
 #define RST_PIN 4
@@ -24,12 +32,14 @@
 int col[8];
 bool xacthuc = true;
 
+
 #define BLACK 0x0000
 #define RED 0xF800
 #define WHITE 0xFFFF
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);             // Create MFRC522
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC); // tft
+uint16_t main_color = tft.color565(8,51,143);
 MFRC522::MIFARE_Key key;
 
 //Image to Hex Code Converter:
@@ -66,6 +76,12 @@ AsyncWebServer server(80);
 IPAddress localIP;
 
 //*****************************************************************************************//
+
+void split(String lst, String keyy){
+  for (int i = 0; i < lst.length(); i++){
+
+  }
+}
 
 // Hàm cho tft lcd
 void printText(String text, uint16_t color, int x, int y, int textSize)
@@ -126,48 +142,6 @@ void writeFile(fs::FS &fs, const char *path, const char *message)
     Serial.println("- frite failed");
   file.close();
 }
-
-// //Convert to UTF8
-// String utf8rus(String source)
-// {
-//   int i,k;
-//   String target;
-//   unsigned char n;
-//   char m[2] = { '0', '\0' };
-
- 
-//   k = source.length(); i = 0;
- 
-//   while (i < k) {
-//     n = source[i]; i++;
- 
-//     if (n >= 0xC0) {
-//       switch (n) {
-//         case 0xD0: {    
-//             n = source[i]; i++;
-//             if (n == 0x81) {
-//               n = 0xA8;
-//               break;
-//             }
-//             if (n >= 0x90 && n <= 0xBF) n = n + 0x30;      
-//             break;
-//           }
-//         case 0xD1: { 
-//             n = source[i]; i++;
-//             if (n == 0x91) {
-//               n = 0xB8;
-//               break;
-//             }      
-//             if (n >= 0x80 && n <= 0x8F) n = n + 0x70; 
-//             break;
-//           }
-//       }
-//     } 
-//     m[0] = n; target = target + String(m);
-//   }
-// return target;
- 
-// }
 
 // Initialize SPIFFS
 void initSPIFFS()
@@ -239,7 +213,9 @@ void setup()
   initSPIFFS();       // Init initSPIFFS
   SPI.begin();      // Init SPI bus
   mfrc522.PCD_Init();   // Init MFRC522 card
+
   pinMode(TFT_LED,OUTPUT); //Init led TFT LCD 
+  digitalWrite(TFT_LED,HIGH);
 
   pinMode(ken, OUTPUT); // Init ken
   tft.begin();
@@ -356,7 +332,6 @@ void loop()
     delay(5000);
     ESP.restart();
   }
-  digitalWrite(TFT_LED,HIGH);
   // khai báo các biến
   byte CardUID[18];
   String s_CardUID = "";
@@ -435,6 +410,7 @@ void loop()
   len = 18;
   readBlock(block, len, Name1, status);
 
+  //pHẢI TẠO RA BIẾN TEMP ĐỂ FORMAT TÊN
   temp = String((char *)Name1);
 
   for (int i = 0; i < 16; i++)
@@ -486,20 +462,77 @@ void loop()
 
   //-------------------------------------------------------------------------------------------------*
   // In lên màn hình:
-  tft.fillScreen(tft.color565(35, 27, 18));
+  // tft.fillScreen(tft.color565(35, 27, 18));
 
   String s_Name = s_Name1 + s_Name2;
-  //  printText("NAME:", WHITE, 3, 30, 1);
-  printText(s_Name, tft.color565(245, 108, 87), 3, 50, 1);
-  Serial.println("");
+  // int len_name = s_Name.length();
+  // String ten_xuongdong = "";
+  // String ten = "";
+  // Serial.println(len_name);
+  // int indexcuoi, indexdau;
+  // for (int i = len_name; i > 0; i--){
+  //   if (s_Name[i] != ' '){
+  //     indexdau = i;
+  //     break;
+  //   }
+  // }
+  // s_Name = s_Name.substring(0,indexdau+1);
+  // Serial.println(s_Name);
+  // if ( len_name > 21){
+  //   for (int i = len_name; i > 0; i--){
+  //     if (s_Name[i] == ' ' && (i<21)){
+  //       indexcuoi = i+1;
+  //       break;
+  //     }
+  //     else{
+  //       ten_xuongdong = s_Name[i] + ten_xuongdong;
+  //     }
+  //   }
+  //   ten = s_Name.substring(0,indexcuoi+1);
+  //   printText(ten,BLACK,132,120,1);
+  //   printText(ten_xuongdong,BLACK,132,135,1);
+  // }
+  // else
+  //   printText(s_Name,BLACK,132,120,1);
+  
+  // //  printText("NAME:", WHITE, 3, 30, 1);
+  // printText(s_Name, tft.color565(245, 108, 87), 3, 50, 1);
+  // Serial.println("");
 
-  // In lớp lên LCD
-  printText("CLASS:", tft.color565(247, 118, 4), 3, 71, 1);
-  printText("A1", tft.color565(184, 210, 11), 78, 71, 1);
+  // // In lớp lên LCD
+  // printText("CLASS:", tft.color565(247, 118, 4), 3, 71, 1);
+  // printText("A1", tft.color565(184, 210, 11), 78, 71, 1);
 
-  // in ID lên LCD
-  printText("ID: ", tft.color565(247, 118, 4), 3, 92, 1);
-  printText(s_SSCID, tft.color565(184, 210, 11), 78, 92, 1);
+  // // in ID lên LCD
+  // printText("ID: ", tft.color565(247, 118, 4), 3, 92, 1);
+  // printText(s_SSCID, tft.color565(184, 210, 11), 78, 92, 1);
+
+  tft.fillScreen(WHITE);
+  tft.drawRGBBitmap(0, 0, header, 320, 26);
+  tft.drawRGBBitmap(10, 45, LOGO_SCHOOL, 115, 177);
+
+  //Vẽ Khung điểm danh
+  int line_y;
+
+  line_y = 87;
+  tft.drawLine(132, line_y+0, 312, line_y+0, main_color);
+  tft.drawLine(132, line_y+1, 312, line_y+1, main_color);
+  tft.drawLine(132, line_y+2, 312, line_y+2, main_color);
+  line_y = 192;
+  tft.drawLine(132, line_y+0, 312, line_y+0, main_color);
+  tft.drawLine(132, line_y+1, 312, line_y+1, main_color);
+  tft.drawLine(132, line_y+2, 312, line_y+2, main_color);
+
+  //Vẽ nội dung điểm danh
+  tft.setFont(&FreeSansBold9pt7b);
+  printText("NAME:",BLACK,132,105,1);
+  printText(s_Name,BLACK,132,120,1);
+  // printText("NGUYEN DINH KHIEM",BLACK,132,135,1);
+  printText("CLASS: ",BLACK,132,160,1);
+  printText("10A1",BLACK,207,160,1);
+  printText("ID:", BLACK, 132, 185, 1);
+  printText(s_SSCID, BLACK, 155, 185, 1);
+  tft.drawRGBBitmap(197, 198, Attendance_Status, 114, 10);
 
   // Nếu bị lỗi:
   if (!xacthuc)
@@ -562,22 +595,24 @@ void loop()
         String data = obj["Data"];   // lấy dữ liệu tên Data
         deserializeJson(doc2, data); // Vì Data là 1 JSON cho nên phải fix data thêm 1 lần nữa
         JsonObject obj2 = doc2.as<JsonObject>();
-        const char *RealTime = obj2["Time"]; // lấy real time
-        // in RealTime lên LCD
-        String s_RealTime;
-        for (int i = 0; i < 19; i++)
-        {
-          if (RealTime[i] == 'T')
-          {
-            s_RealTime += " ";
-          }
-          else
-          {
-            s_RealTime += String(RealTime[i]);
-          }
-        }
-        printText("TIME:", tft.color565(247, 118, 4), 3, 113, 1);
-        printText(s_RealTime, tft.color565(184, 210, 11), 78, 113, 1);}
+        const char* data_Time = obj2["Time"];// lấy real time
+        //Xư lý Real Time
+        String RealTime = String(data_Time); 
+        String RealTime1 = RealTime.substring(0,10);
+        String RealTime1_list[] = {RealTime1.substring(8,10),RealTime1.substring(5,7),RealTime1.substring(0,4)};
+        RealTime1 = RealTime1_list[0] + "/" + RealTime1_list[1] + "/" + RealTime1_list[2];
+        String RealTime2 = RealTime.substring(11,16);
+
+        //ngày tháng giờ
+        tft.setFont(&Montserrat_ExtraBold20pt7b);
+        printText(RealTime2,BLACK,210,65,1);
+        tft.setFont(&FreeSansBold9pt7b);
+        printText(RealTime1,BLACK,224,80,1);
+
+        //Vẽ trạng thánh điểm danh
+        tft.setFont(&Montserrat_ExtraBold10pt7b);
+        printText("Late",ILI9341_RED,262,225,1);
+      }
       else
         Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
     }
