@@ -10,12 +10,13 @@
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include "LOGO_congty.h"
-#include "LOGO_SCHOOL.h"
+#include "ls.h"
 #include "header.h"
 #include "Attendance_Status.h"
 #include <Adafruit_GFX.h>
 #include "Fonts/FreeSansBold12pt7b.h";
 #include "Fonts/FreeSansBold9pt7b.h";
+#include "Fonts/FreeSansBold7pt7b.h";
 #include "Fonts/Montserrat_ExtraBold20pt7b.h";
 #include "Fonts/Montserrat_ExtraBold10pt7b.h";
 #include "Fonts/Montserrat_SemiBold6pt7b.h";
@@ -462,77 +463,68 @@ void loop()
 
   //-------------------------------------------------------------------------------------------------*
   // In lên màn hình:
-  // tft.fillScreen(tft.color565(35, 27, 18));
 
+  //Xử lý biến name
   String s_Name = s_Name1 + s_Name2;
-  // int len_name = s_Name.length();
-  // String ten_xuongdong = "";
-  // String ten = "";
-  // Serial.println(len_name);
-  // int indexcuoi, indexdau;
-  // for (int i = len_name; i > 0; i--){
-  //   if (s_Name[i] != ' '){
-  //     indexdau = i;
-  //     break;
-  //   }
-  // }
-  // s_Name = s_Name.substring(0,indexdau+1);
-  // Serial.println(s_Name);
-  // if ( len_name > 21){
-  //   for (int i = len_name; i > 0; i--){
-  //     if (s_Name[i] == ' ' && (i<21)){
-  //       indexcuoi = i+1;
-  //       break;
-  //     }
-  //     else{
-  //       ten_xuongdong = s_Name[i] + ten_xuongdong;
-  //     }
-  //   }
-  //   ten = s_Name.substring(0,indexcuoi+1);
-  //   printText(ten,BLACK,132,120,1);
-  //   printText(ten_xuongdong,BLACK,132,135,1);
-  // }
-  // else
-  //   printText(s_Name,BLACK,132,120,1);
-  
-  // //  printText("NAME:", WHITE, 3, 30, 1);
-  // printText(s_Name, tft.color565(245, 108, 87), 3, 50, 1);
-  // Serial.println("");
+  int len_name = s_Name.length();
+  for (int i = len-1; i >= 0; i--){
+    // Serial.print(i);
+    // Serial.print("\t");
+    // Serial.println(a[i]);
+    if(s_Name[i] != ' '){
+      s_Name = s_Name.substring(0,i+1);
+      len_name = s_Name.length();
+      Serial.println(s_Name);
+      Serial.println(len_name );
+      break;
+    }
+  }
 
-  // // In lớp lên LCD
-  // printText("CLASS:", tft.color565(247, 118, 4), 3, 71, 1);
-  // printText("A1", tft.color565(184, 210, 11), 78, 71, 1);
-
-  // // in ID lên LCD
-  // printText("ID: ", tft.color565(247, 118, 4), 3, 92, 1);
-  // printText(s_SSCID, tft.color565(184, 210, 11), 78, 92, 1);
-
-  tft.fillScreen(WHITE);
+  tft.fillScreen(ILI9341_WHITE);
   tft.drawRGBBitmap(0, 0, header, 320, 26);
-  tft.drawRGBBitmap(10, 45, LOGO_SCHOOL, 115, 177);
+  tft.drawRGBBitmap(20, 30, ls, 70, 68);
 
   //Vẽ Khung điểm danh
   int line_y;
 
-  line_y = 87;
-  tft.drawLine(132, line_y+0, 312, line_y+0, main_color);
-  tft.drawLine(132, line_y+1, 312, line_y+1, main_color);
-  tft.drawLine(132, line_y+2, 312, line_y+2, main_color);
-  line_y = 192;
-  tft.drawLine(132, line_y+0, 312, line_y+0, main_color);
-  tft.drawLine(132, line_y+1, 312, line_y+1, main_color);
-  tft.drawLine(132, line_y+2, 312, line_y+2, main_color);
+  line_y = 100;
+  tft.drawLine(190, line_y+0, 312, line_y+0, main_color);
+  tft.drawLine(190, line_y+1, 312, line_y+1, main_color);
+  tft.drawLine(190, line_y+2, 312, line_y+2, main_color);
+  tft.drawLine(190, line_y+3, 312, line_y+3, main_color);
+  tft.drawLine(190, line_y+4, 312, line_y+4, main_color);
+  line_y = 202;
+  tft.drawLine(5, line_y+0, 130, line_y+0, main_color);
+  tft.drawLine(5, line_y+1, 130, line_y+1, main_color);
+  tft.drawLine(5, line_y-1, 130, line_y-1, main_color);
+  tft.drawLine(5, line_y-2, 130, line_y-2, main_color);
+  tft.drawLine(5, line_y+2, 130, line_y+2, main_color);
 
   //Vẽ nội dung điểm danh
-  tft.setFont(&FreeSansBold9pt7b);
-  printText("NAME:",BLACK,132,105,1);
-  printText(s_Name,BLACK,132,120,1);
-  // printText("NGUYEN DINH KHIEM",BLACK,132,135,1);
-  printText("CLASS: ",BLACK,132,160,1);
-  printText("10A1",BLACK,207,160,1);
-  printText("ID:", BLACK, 132, 185, 1);
-  printText(s_SSCID, BLACK, 155, 185, 1);
-  tft.drawRGBBitmap(197, 198, Attendance_Status, 114, 10);
+  if (len_name < 17){
+    tft.setFont(&FreeSansBold9pt7b);
+    printText("NAME:",ILI9341_BLACK,5,145,1);
+    printText(s_Name,ILI9341_BLACK,80,145,1);
+    printText("ID:", ILI9341_BLACK, 5, 173, 1);
+    printText("1202072222000047", ILI9341_BLACK, 80, 173, 1);
+  }
+  else if ((len_name >= 17) && (len_name <= 27))
+  {
+    tft.setFont(&FreeSansBold9pt7b);
+    printText("NAME:",ILI9341_BLACK,5,135,1);
+    printText(s_Name,ILI9341_BLACK,5,150,1);
+    printText("ID:", ILI9341_BLACK, 5, 178, 1);
+    printText("1202072222000047", ILI9341_BLACK, 80, 178, 1);
+  }
+  else{
+    tft.setFont(&FreeSansBold9pt7b);
+    printText("NAME:",ILI9341_BLACK,5,135,1);
+    tft.setFont(&FreeSansBold7pt7b);
+    printText(s_Name,ILI9341_BLACK,5,150,1);
+    tft.setFont(&FreeSansBold9pt7b);
+    printText("ID:", ILI9341_BLACK, 5, 178, 1);
+    printText("1202072222000047", ILI9341_BLACK, 80, 178, 1);
+  }
 
   // Nếu bị lỗi:
   if (!xacthuc)
@@ -605,13 +597,9 @@ void loop()
 
         //ngày tháng giờ
         tft.setFont(&Montserrat_ExtraBold20pt7b);
-        printText(RealTime2,BLACK,210,65,1);
+        printText(RealTime2,ILI9341_BLACK,200,68,1);
         tft.setFont(&FreeSansBold9pt7b);
-        printText(RealTime1,BLACK,224,80,1);
-
-        //Vẽ trạng thánh điểm danh
-        tft.setFont(&Montserrat_ExtraBold10pt7b);
-        printText("Late",ILI9341_RED,262,225,1);
+        printText(RealTime1,ILI9341_BLACK,214,83,1);
       }
       else
         Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
