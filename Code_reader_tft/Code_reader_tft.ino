@@ -347,6 +347,12 @@ void loop()
   // Prepare key - all keys are set to FFFFFFFFFFFFh at chip delivery from the factory.
   for (byte i = 0; i < 6; i++)
     key.keyByte[i] = 0xFF;
+  // key.keyByte[0] = 0x01;
+  // key.keyByte[1] = 0x02;
+  // key.keyByte[2] = 0x03;
+  // key.keyByte[3] = 0x04;
+  // key.keyByte[4] = 0x05;
+  // key.keyByte[5] = 0x06;
 
   // some variables we need
   byte block;
@@ -467,15 +473,15 @@ void loop()
   //Xử lý biến name
   String s_Name = s_Name1 + s_Name2;
   int len_name = s_Name.length();
-  for (int i = len-1; i >= 0; i--){
+  for (int i = len_name-1; i >= 0; i--){
     // Serial.print(i);
     // Serial.print("\t");
     // Serial.println(a[i]);
     if(s_Name[i] != ' '){
       s_Name = s_Name.substring(0,i+1);
       len_name = s_Name.length();
-      Serial.println(s_Name);
-      Serial.println(len_name );
+      // Serial.println(s_Name);
+      // Serial.println(len_name);
       break;
     }
   }
@@ -500,31 +506,7 @@ void loop()
   tft.drawLine(5, line_y-2, 130, line_y-2, main_color);
   tft.drawLine(5, line_y+2, 130, line_y+2, main_color);
 
-  //Vẽ nội dung điểm danh
-  if (len_name < 17){
-    tft.setFont(&FreeSansBold9pt7b);
-    printText("NAME:",ILI9341_BLACK,5,145,1);
-    printText(s_Name,ILI9341_BLACK,80,145,1);
-    printText("ID:", ILI9341_BLACK, 5, 173, 1);
-    printText("1202072222000047", ILI9341_BLACK, 80, 173, 1);
-  }
-  else if ((len_name >= 17) && (len_name <= 27))
-  {
-    tft.setFont(&FreeSansBold9pt7b);
-    printText("NAME:",ILI9341_BLACK,5,135,1);
-    printText(s_Name,ILI9341_BLACK,5,150,1);
-    printText("ID:", ILI9341_BLACK, 5, 178, 1);
-    printText("1202072222000047", ILI9341_BLACK, 80, 178, 1);
-  }
-  else{
-    tft.setFont(&FreeSansBold9pt7b);
-    printText("NAME:",ILI9341_BLACK,5,135,1);
-    tft.setFont(&FreeSansBold7pt7b);
-    printText(s_Name,ILI9341_BLACK,5,150,1);
-    tft.setFont(&FreeSansBold9pt7b);
-    printText("ID:", ILI9341_BLACK, 5, 178, 1);
-    printText("1202072222000047", ILI9341_BLACK, 80, 178, 1);
-  }
+
 
   // Nếu bị lỗi:
   if (!xacthuc)
@@ -588,12 +570,52 @@ void loop()
         deserializeJson(doc2, data); // Vì Data là 1 JSON cho nên phải fix data thêm 1 lần nữa
         JsonObject obj2 = doc2.as<JsonObject>();
         const char* data_Time = obj2["Time"];// lấy real time
+        const char* data_Name = obj2["Name"];// lấy Name
         //Xư lý Real Time
         String RealTime = String(data_Time); 
         String RealTime1 = RealTime.substring(0,10);
         String RealTime1_list[] = {RealTime1.substring(8,10),RealTime1.substring(5,7),RealTime1.substring(0,4)};
         RealTime1 = RealTime1_list[0] + "/" + RealTime1_list[1] + "/" + RealTime1_list[2];
         String RealTime2 = RealTime.substring(11,16);
+
+        //Name
+        String Name_API = String(data_Name);
+        Serial.println(Name_API);
+        int len_name = Name_API.length();
+
+        //Vẽ nội dung điểm danh
+        tft.setFont(&FreeSansBold9pt7b);
+        printText("NAME:",main_color,5,140,1);
+        if (len_name < 17){
+          printText(Name_API,ILI9341_BLACK,80,140,1);
+          printText("ID:", main_color, 40, 173, 1);
+          printText(s_SSCID, ILI9341_BLACK, 80, 173, 1);
+        }
+        else{
+          String temp_name = Name_API;
+          for(int i = len_name-1; i >= 0; i--){
+            // Serial.print("lan " + String(i) + "\t");
+            // Serial.println(Name_API[i]);
+            if (Name_API[i] == ' '){
+              Serial.println(temp_name.lastIndexOf(temp_name[i]));
+              if (temp_name.lastIndexOf(temp_name[i])-1 < 17 ){
+                s_Name1 = Name_API.substring(0,i);
+                s_Name2 = Name_API.substring(i+1,len_name);
+                Serial.println(s_Name1);
+                Serial.println(s_Name2);
+                break;
+              }
+              else{
+                temp_name = temp_name.substring(0,i);
+              }
+            }
+          }
+          printText(s_Name1,ILI9341_BLACK,80,140,1);
+          printText(s_Name2,ILI9341_BLACK,80,155,1);
+          tft.setFont(&FreeSansBold9pt7b);
+          printText("ID:", main_color, 40  , 178, 1);
+          printText(s_SSCID, ILI9341_BLACK, 80, 178, 1);
+        }
 
         //ngày tháng giờ
         tft.setFont(&Montserrat_ExtraBold20pt7b);
@@ -608,6 +630,6 @@ void loop()
   }
   else
     xacthuc = true;
-  delay(50);
+  delay(500);
 //-------------------------------------------
 }
